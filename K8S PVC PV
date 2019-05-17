@@ -1,0 +1,81 @@
+[root@funo volumes]# exportfs -arv
+exporting 172.16.0.0/16:/data/volumes/v5
+exporting 172.16.0.0/16:/data/volumes/v4
+exporting 172.16.0.0/16:/data/volumes/v3
+exporting 172.16.0.0/16:/data/volumes/v2
+exporting 172.16.0.0/16:/data/volumes/v1
+[root@funo volumes]# 
+
+showmount -e
+PV 挂载
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+   name: pv001
+   labels:
+      name: pv001
+spec:
+   nfs:
+     path: /data/volumes/v1
+     server: 172.16.16.31
+   accessModes: ["ReadWriteMany","ReadWriteOnce"]
+   capacity:
+     storage: 2Gi
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+   name: pv002
+   labels:
+      name: pv002
+spec:
+   nfs:
+     path: /data/volumes/v2
+     server: 172.16.16.31
+   accessModes: ["ReadWriteMany","ReadWriteOnce"]
+   capacity:
+     storage: 20Gi
+~
+挂载之后：
+[root@master volumes]# kubectl get pv
+RECLAIM POLICY 回收策略  PVC删除了PV还有数据，Retain 保留。（也可以Recycle 回收  还有一个种delete 删除）后面两个没人用
+NAME    CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS      CLAIM   STORAGECLASS   REASON   AGE
+pv001   2Gi        RWO,RWX        Retain           Available                                   64s
+pv002   20Gi       RWO,RWX        Retain           Available                                   64s
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mypvc
+  namespace: default
+spec:
+  accessModes: ["ReadWriteMany"]
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-vol-pvc
+  namespace: default
+spec:
+  containers:
+  - name: myapp
+    image: ikubernetes/myapp:v1
+    volumeMounts:
+    - name: html
+      mountPath: /usr/share/nginx/html/
+  volumes:
+  - name: html
+    persistentVolumeClaim:
+      claimName: mypvc
+~
+
+[root@master volumes]# kubectl get pv
+NAME    CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS      CLAIM           STORAGECLASS   REASON   AGE
+pv001   2Gi        RWO,RWX        Retain           Available                                           19m
+pv002   20Gi       RWO,RWX        Retain           Bound       default/mypvc                           19m
+[root@master volumes]# 
+
+成功挂载到pod PVC pv  volumes的过程
